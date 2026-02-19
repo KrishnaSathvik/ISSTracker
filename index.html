@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISS Live Tracker — Real-time 3D</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --void:     #020408;
+            --panel:    rgba(2, 8, 16, 0.85);
+            --amber:    #ff9d00;
+            --amber-dim: rgba(255, 157, 0, 0.15);
+            --teal:     #00e5ff;
+            --teal-dim: rgba(0, 229, 255, 0.1);
+            --red:      #ff4444;
+            --green:    #00ff88;
+            --border:   rgba(255, 157, 0, 0.2);
+            --border-dim: rgba(255,255,255,0.05);
+            --font-mono: 'Share Tech Mono', monospace;
+            --font-ui:   'Rajdhani', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--void);
+            color: var(--amber);
+            font-family: var(--font-mono);
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas { display: block; position: fixed; inset: 0; z-index: 0; }
+
+        /* ── SCANLINE OVERLAY ── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* ── LOADING SCREEN ── */
+        #boot-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--void);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: opacity 0.8s ease;
+        }
+
+        .boot-logo {
+            font-family: var(--font-ui);
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            color: #fff;
+            margin-bottom: 8px;
+            animation: flicker 3s infinite;
+        }
+        .boot-logo span { color: var(--amber); }
+
+        @keyframes flicker {
+            0%, 95%, 100% { opacity: 1; }
+            96% { opacity: 0.7; }
+            97% { opacity: 1; }
+            98% { opacity: 0.5; }
+            99% { opacity: 1; }
+        }
+
+        .boot-line {
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            color: rgba(255,157,0,0.5);
+            height: 16px;
+        }
+        .boot-line.active { color: var(--amber); }
+        .boot-line.done { color: var(--green); }
+        .boot-line.done::before { content: '✓ '; }
+        .boot-line.active::before { content: '> '; animation: blink-cur 0.6s step-end infinite; }
+        @keyframes blink-cur { 50% { opacity: 0; } }
+
+        #boot-bar-wrap {
+            width: 280px;
+            height: 2px;
+            background: rgba(255,157,0,0.15);
+            margin-top: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        #boot-bar {
+            height: 100%;
+            background: var(--amber);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 8px var(--amber);
+        }
+
+        /* ── CORNER BRACKETS (decorative) ── */
+        .bracket {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            z-index: 50;
+            pointer-events: none;
+        }
+        .bracket-tl { top: 16px; left: 16px; border-top: 1px solid var(--amber); border-left: 1px solid var(--amber); }
+        .bracket-tr { top: 16px; right: 16px; border-top: 1px solid var(--amber); border-right: 1px solid var(--amber); }
+        .bracket-bl { bottom: 16px; left: 16px; border-bottom: 1px solid var(--amber); border-left: 1px solid var(--amber); }
+        .bracket-br { bottom: 16px; right: 16px; border-bottom: 1px solid var(--amber); border-right: 1px solid var(--amber); }
+
+        /* ── MAIN TELEMETRY PANEL ── */
+        #telemetry {
+            position: fixed;
+            top: 40px;
+            left: 40px;
+            z-index: 50;
+            width: 280px;
+            display: none;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse-live 2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulse-live {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+            50% { opacity: 0.4; box-shadow: none; }
+        }
+
+        .panel-title {
+            font-family: var(--font-ui);
+            font-size: 11px;
+            letter-spacing: 0.35em;
+            font-weight: 600;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            flex: 1;
+        }
+
+        .mission-id {
+            font-size: 9px;
+            letter-spacing: 0.1em;
+            color: rgba(255,157,0,0.4);
+        }
+
+        .telem-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border-dim);
+            gap: 12px;
+        }
+        .telem-row:last-child { border-bottom: none; }
+
+        .telem-key {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: rgba(255,157,0,0.45);
+            text-transform: uppercase;
+            padding-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .telem-val {
+            font-size: 16px;
+            color: #fff;
+            text-align: right;
+            line-height: 1.1;
+        }
+        .telem-val.big {
+            font-size: 22px;
+            color: var(--amber);
+            font-family: var(--font-ui);
+            font-weight: 700;
+        }
+        .telem-unit {
+            display: block;
+            font-size: 9px;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.1em;
+            margin-top: 1px;
+        }
+
+        /* Visibility badge */
+        #vis-badge {
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            padding: 3px 10px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-family: var(--font-ui);
+            font-weight: 600;
+        }
+        .vis-day   { background: rgba(255,220,0,0.15); color: #ffdc00; border: 1px solid rgba(255,220,0,0.3); }
+        .vis-eclip { background: rgba(0,100,255,0.15); color: #4488ff; border: 1px solid rgba(0,100,255,0.3); }
+
+        /* Refresh countdown */
+        #refresh-wrap {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-dim);
+        }
+        .refresh-label {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: rgba(255,157,0,0.3);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #refresh-bar-wrap {
+            height: 2px;
+            background: rgba(255,157,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        #refresh-bar {
+            height: 100%;
+            background: var(--amber);
+            width: 100%;
+            box-shadow: 0 0 6px var(--amber);
+            transition: width 1s linear;
+        }
+
+        /* Error */
+        #error-msg {
+            display: none;
+            margin-top: 12px;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            color: var(--red);
+            padding: 8px 12px;
+            border: 1px solid rgba(255,68,68,0.3);
+            background: rgba(255,68,68,0.05);
+        }
+        #error-msg::before { content: '⚠ '; }
+
+        /* ── TOP CENTER — MISSION CLOCK ── */
+        #mission-clock {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            text-align: center;
+            display: none;
+        }
+        .clock-label {
+            font-size: 9px;
+            letter-spacing: 0.35em;
+            color: rgba(255,157,0,0.35);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .clock-time {
+            font-family: var(--font-ui);
+            font-size: clamp(18px, 2.5vw, 28px);
+            font-weight: 300;
+            color: rgba(255,255,255,0.15);
+            letter-spacing: 0.1em;
+        }
+
+        /* ── BOTTOM CENTER — CONTROLS HINT ── */
+        #controls-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            display: none;
+            gap: 24px;
+            align-items: center;
+        }
+        .hint-item {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: rgba(255,157,0,0.25);
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .hint-sep {
+            width: 1px;
+            height: 12px;
+            background: rgba(255,157,0,0.15);
+        }
+
+        /* ── TOP RIGHT — ORBITAL DATA ── */
+        #orbital-panel {
+            position: fixed;
+            top: 40px;
+            right: 40px;
+            z-index: 50;
+            width: 200px;
+            display: none;
+            flex-direction: column;
+            gap: 0;
+            text-align: right;
+        }
+        .orbital-title {
+            font-size: 9px;
+            letter-spacing: 0.3em;
+            color: rgba(255,157,0,0.35);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+        .orbital-row {
+            padding: 7px 0;
+            border-bottom: 1px solid var(--border-dim);
+        }
+        .orbital-row:last-child { border-bottom: none; }
+        .orbital-key {
+            font-size: 8px;
+            letter-spacing: 0.2em;
+            color: rgba(255,157,0,0.3);
+            text-transform: uppercase;
+        }
+        .orbital-val {
+            font-family: var(--font-ui);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--teal);
+            line-height: 1.1;
+        }
+
+        /* ── ISS LABEL ── */
+        #iss-label {
+            position: fixed;
+            z-index: 50;
+            pointer-events: none;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transform: translate(-50%, -120%);
+        }
+        .iss-label-text {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--teal);
+            text-transform: uppercase;
+            white-space: nowrap;
+            text-shadow: 0 0 10px var(--teal);
+        }
+        .iss-label-line {
+            width: 1px;
+            height: 20px;
+            background: linear-gradient(to bottom, var(--teal), transparent);
+        }
+
+        /* ── BOTTOM RIGHT — OBJECT INFO ── */
+        #object-info {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        .obj-name {
+            font-family: var(--font-ui);
+            font-size: clamp(28px, 4vw, 48px);
+            font-weight: 700;
+            color: rgba(255,255,255,0.04);
+            letter-spacing: 0.05em;
+            line-height: 1;
+        }
+        .obj-sub {
+            font-size: 9px;
+            letter-spacing: 0.25em;
+            color: rgba(255,157,0,0.2);
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 700px) {
+            #telemetry { top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90vw; }
+            #orbital-panel, #mission-clock { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Corner brackets -->
+<div class="bracket bracket-tl"></div>
+<div class="bracket bracket-tr"></div>
+<div class="bracket bracket-bl"></div>
+<div class="bracket bracket-br"></div>
+
+<!-- Boot screen -->
+<div id="boot-screen">
+    <div class="boot-logo">IS<span>S</span></div>
+    <div class="boot-line" id="b1">INITIALIZING TRACKING SYSTEMS</div>
+    <div class="boot-line" id="b2">LOADING EARTH TEXTURE DATA</div>
+    <div class="boot-line" id="b3">CONNECTING TO TELEMETRY FEED</div>
+    <div class="boot-line" id="b4">ACQUIRING ORBITAL LOCK</div>
+    <div id="boot-bar-wrap"><div id="boot-bar"></div></div>
+</div>
+
+<!-- Mission clock -->
+<div id="mission-clock">
+    <div class="clock-label">Mission Elapsed</div>
+    <div class="clock-time" id="clock-display">--:--:--</div>
+</div>
+
+<!-- Main telemetry panel -->
+<div id="telemetry">
+    <div class="panel-header">
+        <div class="live-dot"></div>
+        <div class="panel-title">ISS Telemetry</div>
+        <div class="mission-id">ZARYA · 25544</div>
+    </div>
+
+    <div class="telem-row">
+        <div class="telem-key">Latitude</div>
+        <div class="telem-val big" id="lat">--</div>
+    </div>
+    <div class="telem-row">
+        <div class="telem-key">Longitude</div>
+        <div class="telem-val big" id="lon">--</div>
+    </div>
+    <div class="telem-row">
+        <div class="telem-key">Altitude</div>
+        <div class="telem-val">
+            <span id="alt" style="font-size:20px; color: var(--teal); font-family: var(--font-ui); font-weight:600;">--</span>
+            <span class="telem-unit">KILOMETERS</span>
+        </div>
+    </div>
+    <div class="telem-row">
+        <div class="telem-key">Velocity</div>
+        <div class="telem-val">
+            <span id="vel" style="font-size:20px; color: var(--teal); font-family: var(--font-ui); font-weight:600;">--</span>
+            <span class="telem-unit">KM / HOUR</span>
+        </div>
+    </div>
+    <div class="telem-row">
+        <div class="telem-key">Visibility</div>
+        <div class="telem-val"><span id="vis-badge" class="vis-eclip">--</span></div>
+    </div>
+    <div class="telem-row" style="border:none;">
+        <div class="telem-key">Last Fix</div>
+        <div class="telem-val" style="font-size:12px; color:rgba(255,255,255,0.3);" id="time">--</div>
+    </div>
+
+    <div id="refresh-wrap">
+        <div class="refresh-label">
+            <span>Next update</span>
+            <span id="countdown">10s</span>
+        </div>
+        <div id="refresh-bar-wrap"><div id="refresh-bar"></div></div>
+    </div>
+    <div id="error-msg">Signal lost. Retrying...</div>
+</div>
+
+<!-- Orbital panel -->
+<div id="orbital-panel">
+    <div class="orbital-title">Orbital Parameters</div>
+    <div class="orbital-row">
+        <div class="orbital-key">Inclination</div>
+        <div class="orbital-val">51.6°</div>
+    </div>
+    <div class="orbital-row">
+        <div class="orbital-key">Period</div>
+        <div class="orbital-val">92.9<span style="font-size:11px; color:rgba(0,229,255,0.5)"> min</span></div>
+    </div>
+    <div class="orbital-row">
+        <div class="orbital-key">Orbits / Day</div>
+        <div class="orbital-val">15.5</div>
+    </div>
+    <div class="orbital-row" style="border:none;">
+        <div class="orbital-key">Apogee</div>
+        <div class="orbital-val" id="apogee">--</div>
+    </div>
+</div>
+
+<!-- ISS label -->
+<div id="iss-label">
+    <div class="iss-label-text">▲ ISS</div>
+    <div class="iss-label-line"></div>
+</div>
+
+<!-- Controls hint -->
+<div id="controls-hint">
+    <span class="hint-item">Drag · Rotate</span>
+    <div class="hint-sep"></div>
+    <span class="hint-item">Scroll · Zoom</span>
+    <div class="hint-sep"></div>
+    <span class="hint-item">Updates every 10s</span>
+</div>
+
+<!-- Object info watermark -->
+<div id="object-info">
+    <div class="obj-name">ISS</div>
+    <div class="obj-sub">International Space Station</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    // ── Boot sequence ──
+    const bootLines = ['b1','b2','b3','b4'];
+    const bootBar = document.getElementById('boot-bar');
+    let bootStep = 0;
+
+    function runBoot() {
+        if (bootStep < bootLines.length) {
+            if (bootStep > 0) {
+                document.getElementById(bootLines[bootStep-1]).className = 'boot-line done';
+            }
+            document.getElementById(bootLines[bootStep]).className = 'boot-line active';
+            bootBar.style.width = ((bootStep + 1) / bootLines.length * 100) + '%';
+            bootStep++;
+            setTimeout(runBoot, 600 + Math.random() * 400);
+        } else {
+            document.getElementById(bootLines[bootLines.length-1]).className = 'boot-line done';
+            bootBar.style.width = '100%';
+            setTimeout(hideBoot, 500);
+        }
+    }
+
+    function hideBoot() {
+        const boot = document.getElementById('boot-screen');
+        boot.style.opacity = '0';
+        setTimeout(() => {
+            boot.style.display = 'none';
+            document.getElementById('telemetry').style.display = 'flex';
+            document.getElementById('orbital-panel').style.display = 'flex';
+            document.getElementById('mission-clock').style.display = 'block';
+            document.getElementById('controls-hint').style.display = 'flex';
+            document.getElementById('object-info').style.display = 'flex';
+            document.getElementById('iss-label').style.display = 'flex';
+        }, 800);
+    }
+
+    setTimeout(runBoot, 400);
+
+    // ── Mission clock ──
+    const startTime = Date.now();
+    setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const h = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+        const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+        const s = String(elapsed % 60).padStart(2,'0');
+        document.getElementById('clock-display').textContent = `${h}:${m}:${s}`;
+    }, 1000);
+
+    // ── Three.js ──
+    let scene, camera, renderer, controls;
+    let earth, issMesh, issGlow, sunLight, orbitLine;
+    let issScreenPos = { x: 0, y: 0 };
+
+    const EARTH_RADIUS = 5;
+    const ISS_API_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
+
+    // Orbit trail positions
+    const orbitHistory = [];
+    const MAX_TRAIL = 120;
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 16);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        document.body.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 6.5;
+        controls.maxDistance = 40;
+        controls.enablePan = false;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.15;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0x111133, 0.8);
+        scene.add(ambientLight);
+        sunLight = new THREE.DirectionalLight(0xfff5e0, 2.2);
+        scene.add(sunLight);
+
+        // Earth
+        const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+        const loader = new THREE.TextureLoader();
+        const earthMat = new THREE.MeshPhongMaterial({
+            map:         loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
+            bumpMap:     loader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
+            bumpScale:   0.06,
+            specularMap: loader.load('https://unpkg.com/three-globe/example/img/earth-water.png'),
+            specular:    new THREE.Color(0x334466),
+            shininess:   20
+        });
+        earth = new THREE.Mesh(earthGeo, earthMat);
+        earth.rotation.y = -Math.PI / 2;
+        scene.add(earth);
+
+        // Atmosphere glow
+        const atmGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.02, 64, 64);
+        const atmMat = new THREE.MeshPhongMaterial({
+            color: 0x4488ff,
+            transparent: true,
+            opacity: 0.06,
+            side: THREE.FrontSide
+        });
+        scene.add(new THREE.Mesh(atmGeo, atmMat));
+
+        // ISS dot — glowing teal
+        const issGeo = new THREE.SphereGeometry(0.07, 16, 16);
+        const issMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
+        issMesh = new THREE.Mesh(issGeo, issMat);
+        scene.add(issMesh);
+
+        // ISS glow sprite
+        const glowGeo = new THREE.SphereGeometry(0.18, 16, 16);
+        const glowMat = new THREE.MeshBasicMaterial({
+            color: 0x00e5ff,
+            transparent: true,
+            opacity: 0.25
+        });
+        issGlow = new THREE.Mesh(glowGeo, glowMat);
+        issMesh.add(issGlow);
+
+        // Orbit trail (line)
+        const trailGeo = new THREE.BufferGeometry();
+        const trailPositions = new Float32Array(MAX_TRAIL * 3);
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        trailGeo.setDrawRange(0, 0);
+        const trailMat = new THREE.LineBasicMaterial({
+            color: 0x00e5ff,
+            transparent: true,
+            opacity: 0.25
+        });
+        orbitLine = new THREE.Line(trailGeo, trailMat);
+        scene.add(orbitLine);
+
+        // Stars
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 5000;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 300;
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, sizeAttenuation: true });
+        scene.add(new THREE.Points(starGeo, starMat));
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        fetchISSData();
+        startRefreshCycle();
+        animate();
+    }
+
+    function getPositionFromLatLon(lat, lon, radius) {
+        const phi   = (90 - lat) * (Math.PI / 180);
+        const theta = (lon + 180) * (Math.PI / 180);
+        return new THREE.Vector3(
+            -(radius * Math.sin(phi) * Math.cos(theta)),
+             (radius * Math.cos(phi)),
+             (radius * Math.sin(phi) * Math.sin(theta))
+        );
+    }
+
+    // ── Refresh countdown ──
+    let refreshTimer = 10;
+    const refreshBar = document.getElementById('refresh-bar');
+    const countdownEl = document.getElementById('countdown');
+
+    function startRefreshCycle() {
+        refreshTimer = 10;
+        refreshBar.style.transition = 'none';
+        refreshBar.style.width = '100%';
+        setTimeout(() => {
+            refreshBar.style.transition = 'width 10s linear';
+            refreshBar.style.width = '0%';
+        }, 50);
+
+        const tick = setInterval(() => {
+            refreshTimer--;
+            countdownEl.textContent = refreshTimer + 's';
+            if (refreshTimer <= 0) {
+                clearInterval(tick);
+                fetchISSData();
+                startRefreshCycle();
+            }
+        }, 1000);
+    }
+
+    async function fetchISSData() {
+        try {
+            const res = await fetch(ISS_API_URL);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const d = await res.json();
+
+            const lat = d.latitude.toFixed(4);
+            const lon = d.longitude.toFixed(4);
+
+            document.getElementById('lat').textContent   = lat + '°';
+            document.getElementById('lon').textContent   = lon + '°';
+            document.getElementById('alt').textContent   = d.altitude.toFixed(1);
+            document.getElementById('vel').textContent   = Math.round(d.velocity).toLocaleString();
+            document.getElementById('time').textContent  = new Date(d.timestamp * 1000).toLocaleTimeString();
+            document.getElementById('apogee').textContent = (d.altitude + 8).toFixed(0) + '<span style="font-size:11px; color:rgba(0,229,255,0.5)"> km</span>';
+
+            // Visibility badge
+            const visBadge = document.getElementById('vis-badge');
+            if (d.visibility === 'daylight') {
+                visBadge.textContent = '☀ Daylight';
+                visBadge.className = 'vis-day';
+            } else {
+                visBadge.textContent = '● Eclipsed';
+                visBadge.className = 'vis-eclip';
+            }
+
+            document.getElementById('error-msg').style.display = 'none';
+
+            // Update ISS position
+            const altScale = EARTH_RADIUS * (1 + d.altitude / 6371);
+            const issPos = getPositionFromLatLon(d.latitude, d.longitude, altScale);
+            issMesh.position.copy(issPos);
+
+            // Add to orbit trail
+            orbitHistory.push(issPos.clone());
+            if (orbitHistory.length > MAX_TRAIL) orbitHistory.shift();
+            updateOrbitTrail();
+
+            // Sun position
+            const sunPos = getPositionFromLatLon(d.solar_lat, d.solar_lon, EARTH_RADIUS * 12);
+            sunLight.position.copy(sunPos);
+
+        } catch(e) {
+            console.error(e);
+            document.getElementById('error-msg').style.display = 'block';
+        }
+    }
+
+    function updateOrbitTrail() {
+        const positions = orbitLine.geometry.attributes.position.array;
+        for (let i = 0; i < orbitHistory.length; i++) {
+            positions[i*3]   = orbitHistory[i].x;
+            positions[i*3+1] = orbitHistory[i].y;
+            positions[i*3+2] = orbitHistory[i].z;
+        }
+        orbitLine.geometry.setDrawRange(0, orbitHistory.length);
+        orbitLine.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Project ISS 3D position to screen for label
+    const issLabel = document.getElementById('iss-label');
+    function updateISSLabel() {
+        if (!issMesh) return;
+        const vector = issMesh.position.clone().project(camera);
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+        if (vector.z < 1) {
+            issLabel.style.left = x + 'px';
+            issLabel.style.top  = y + 'px';
+            issLabel.style.opacity = '1';
+        } else {
+            issLabel.style.opacity = '0';
+        }
+    }
+
+    // Glow pulse
+    let glowT = 0;
+    function animate() {
+        requestAnimationFrame(animate);
+        glowT += 0.04;
+        if (issGlow) {
+            issGlow.material.opacity = 0.15 + 0.15 * Math.sin(glowT);
+            issGlow.scale.setScalar(1 + 0.2 * Math.sin(glowT * 0.8));
+        }
+        controls.update();
+        updateISSLabel();
+        renderer.render(scene, camera);
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
