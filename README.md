@@ -54,7 +54,7 @@ vercel --prod
 
 ## 🌐 Live Demo
 
-**[your-url.vercel.app](https://iss-tracker.vercel.app)**
+**[(https://iss-tracker.vercel.app)]**
 
 ---
 
