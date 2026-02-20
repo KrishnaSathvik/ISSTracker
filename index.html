@@ -223,14 +223,50 @@
         .obj-name { font-family: var(--font-ui); font-size: clamp(32px,4vw,52px); font-weight: 700; color: rgba(255,255,255,0.05); letter-spacing: 0.05em; line-height: 1; }
         .obj-sub  { font-size: 9px; letter-spacing: 0.25em; color: rgba(255,204,0,0.25); text-transform: uppercase; }
 
-        /* ── MOBILE ── */
+        /* ── MOBILE DRAWER ── */
+        #mobile-handle {
+            display: none;
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+            background: rgba(1,5,12,0.97);
+            border-top: 1px solid var(--border);
+            border-radius: 16px 16px 0 0;
+            padding: 10px 20px 14px;
+            cursor: pointer;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 -4px 40px rgba(0,0,0,0.8);
+        }
+        #mobile-handle-grip {
+            width: 36px; height: 3px; border-radius: 2px;
+            background: rgba(255,204,0,0.4); margin: 0 auto 10px;
+        }
+        #mobile-handle-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .mh-item { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+        .mh-key  { font-size: 8px; letter-spacing: 0.2em; color: var(--amber); opacity: 0.6; text-transform: uppercase; }
+        .mh-val  { font-family: var(--font-ui); font-size: 16px; font-weight: 700; color: #fff; }
+        .mh-sep  { width: 1px; height: 28px; background: rgba(255,204,0,0.2); }
+        #mobile-chevron {
+            font-size: 14px; color: var(--amber); opacity: 0.6;
+            transition: transform 0.35s ease;
+            position: absolute; right: 18px; bottom: 16px;
+        }
+        #mobile-chevron.open { transform: rotate(180deg); }
+
         @media (max-width: 700px) {
             #telemetry {
                 top: auto; bottom: 0; left: 0; right: 0;
-                width: 100%; border-radius: 16px 16px 0 0;
-                transform: none; padding: 20px 16px 28px;
+                width: 100%; border-radius: 0;
+                transform: translateY(100%);
+                transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+                padding: 16px 16px 24px;
                 border-left: none; border-right: none; border-bottom: none;
-                max-height: 75vh; overflow-y: auto;
+                max-height: 72vh; overflow-y: auto;
+                border-top: 1px solid var(--border);
+                border-radius: 16px 16px 0 0;
+            }
+            #telemetry.drawer-open {
+                transform: translateY(0);
             }
             .telem-val.big { font-size: 22px; }
             .telem-val     { font-size: 17px; }
@@ -240,6 +276,7 @@
             .telem-row     { padding: 12px 0; }
             #orbital-panel, #mission-clock, #object-info, #controls-hint { display: none !important; }
             .bracket { display: none; }
+            #mobile-handle { display: block; }
         }
     </style>
 </head>
@@ -264,6 +301,33 @@
 <div id="mission-clock">
     <div class="clock-label">Session Elapsed</div>
     <div class="clock-time" id="clock-display">--:--:--</div>
+</div>
+
+<!-- Mobile drawer handle (visible on small screens only) -->
+<div id="mobile-handle" onclick="toggleDrawer()">
+    <div id="mobile-handle-grip"></div>
+    <div id="mobile-handle-row">
+        <div class="mh-item">
+            <span class="mh-key">Lat</span>
+            <span class="mh-val" id="mh-lat">--</span>
+        </div>
+        <div class="mh-sep"></div>
+        <div class="mh-item">
+            <span class="mh-key">Lon</span>
+            <span class="mh-val" id="mh-lon">--</span>
+        </div>
+        <div class="mh-sep"></div>
+        <div class="mh-item">
+            <span class="mh-key">Alt km</span>
+            <span class="mh-val" id="mh-alt" style="color:var(--teal)">--</span>
+        </div>
+        <div class="mh-sep"></div>
+        <div class="mh-item">
+            <span class="mh-key">Status</span>
+            <span class="mh-val" id="mh-vis" style="font-size:12px">--</span>
+        </div>
+    </div>
+    <div id="mobile-chevron">▲</div>
 </div>
 
 <!-- Telemetry -->
@@ -355,6 +419,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
+    // Mobile drawer toggle
+    let drawerOpen = false;
+    function toggleDrawer() {
+        drawerOpen = !drawerOpen;
+        document.getElementById('telemetry').classList.toggle('drawer-open', drawerOpen);
+        document.getElementById('mobile-chevron').classList.toggle('open', drawerOpen);
+    }
+    // Close drawer when tapping the globe canvas
+    document.addEventListener('pointerdown', e => {
+        if (drawerOpen && !e.target.closest('#telemetry') && !e.target.closest('#mobile-handle')) {
+            drawerOpen = false;
+            document.getElementById('telemetry').classList.remove('drawer-open');
+            document.getElementById('mobile-chevron').classList.remove('open');
+        }
+    });
+
     // Boot sequence
     const bootLines = ['b1','b2','b3','b4'];
     const bootBar = document.getElementById('boot-bar');
@@ -375,13 +455,20 @@
     function hideBoot() {
         const boot = document.getElementById('boot-screen');
         boot.style.opacity = '0';
+        const isMobile = window.innerWidth <= 700;
         setTimeout(() => {
             boot.style.display = 'none';
-            document.getElementById('telemetry').style.display = 'flex';
-            document.getElementById('orbital-panel').style.display = 'flex';
-            document.getElementById('mission-clock').style.display = 'block';
-            document.getElementById('controls-hint').style.display = 'flex';
-            document.getElementById('object-info').style.display = 'flex';
+            // On mobile: show handle instead of full panel; panel slides in on tap
+            if (isMobile) {
+                document.getElementById('telemetry').style.display = 'flex';
+                // handle is shown via CSS (display:block on mobile)
+            } else {
+                document.getElementById('telemetry').style.display = 'flex';
+                document.getElementById('orbital-panel').style.display = 'flex';
+                document.getElementById('mission-clock').style.display = 'block';
+                document.getElementById('controls-hint').style.display = 'flex';
+                document.getElementById('object-info').style.display = 'flex';
+            }
             document.getElementById('iss-label').style.display = 'flex';
         }, 800);
     }
@@ -422,7 +509,7 @@
         controls.enablePan = false;
         controls.autoRotate = false;
 
-        scene.add(new THREE.AmbientLight(0x111133, 0.8));
+        scene.add(new THREE.AmbientLight(0x111133, 0.3));
         sunLight = new THREE.DirectionalLight(0xfff5e0, 2.2);
         scene.add(sunLight);
 
@@ -432,7 +519,10 @@
             bumpMap:     loader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
             bumpScale:   0.06,
             specularMap: loader.load('https://unpkg.com/three-globe/example/img/earth-water.png'),
-            specular:    new THREE.Color(0x334466), shininess: 20
+            specular:    new THREE.Color(0x334466), shininess: 20,
+            emissiveMap: loader.load('https://unpkg.com/three-globe/example/img/earth-night.jpg'),
+            emissive:    new THREE.Color(0xffddaa),
+            emissiveIntensity: 0.9
         });
         earth = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS,64,64), earthMat);
         earthGroup = new THREE.Group();
@@ -531,15 +621,6 @@
             document.getElementById('apogee').textContent = (d.altitude+8).toFixed(0)+' km';
             document.getElementById('error-msg').style.display = 'none';
 
-            const vis = document.getElementById('vis-badge');
-            if (d.visibility === 'daylight') {
-                vis.textContent = '☀ Daylight';
-                vis.className = 'vis-day';
-            } else {
-                vis.textContent = '● Eclipsed';
-                vis.className = 'vis-eclip';
-            }
-
             const altScale = EARTH_RADIUS*(1+d.altitude/6371);
             const issPos   = latLonToVec3(d.latitude, d.longitude, altScale);
             issMesh.position.copy(issPos);
@@ -547,7 +628,31 @@
             if (orbitHistory.length > MAX_TRAIL) orbitHistory.shift();
             updateTrail();
 
-            sunLight.position.copy(latLonToWorld(d.solar_lat, d.solar_lon, EARTH_RADIUS*12));
+            const sunPos = latLonToWorld(d.solar_lat, d.solar_lon, EARTH_RADIUS*12);
+            sunLight.position.copy(sunPos);
+
+            // Geometric eclipse check using consistent world-space coords for both ISS and sun.
+            // latLonToWorld is used for both so the coordinate frames match.
+            const issWorld = latLonToWorld(d.latitude, d.longitude, altScale);
+            const sunDir   = sunPos.clone().normalize();
+            const proj     = issWorld.dot(sunDir);      // component along sun axis
+            const perpDist = issWorld.clone().addScaledVector(sunDir, -proj).length(); // dist from shadow axis
+            const inShadow = proj < 0 && perpDist < EARTH_RADIUS;
+
+            const vis = document.getElementById('vis-badge');
+            if (!inShadow) {
+                vis.textContent = '☀ Daylight';
+                vis.className = 'vis-day';
+            } else {
+                vis.textContent = '● Eclipsed';
+                vis.className = 'vis-eclip';
+            }
+
+            // Mini handle (mobile)
+            document.getElementById('mh-lat').textContent = d.latitude.toFixed(2)+'°';
+            document.getElementById('mh-lon').textContent = d.longitude.toFixed(2)+'°';
+            document.getElementById('mh-alt').textContent = d.altitude.toFixed(0);
+            document.getElementById('mh-vis').textContent = !inShadow ? '☀ Day' : '● Night';
         } catch(e) {
             console.error(e);
             document.getElementById('error-msg').style.display = 'block';
