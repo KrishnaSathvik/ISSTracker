@@ -6,23 +6,18 @@
     <title>ISS Live Tracker — Real-time 3D</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
-
     <style>
         :root {
-            --void:     #020408;
-            --panel:    rgba(2, 8, 16, 0.85);
-            --amber:    #ff9d00;
-            --amber-dim: rgba(255, 157, 0, 0.15);
-            --teal:     #00e5ff;
-            --teal-dim: rgba(0, 229, 255, 0.1);
-            --red:      #ff4444;
-            --green:    #00ff88;
-            --border:   rgba(255, 157, 0, 0.2);
-            --border-dim: rgba(255,255,255,0.05);
+            --void:      #020408;
+            --amber:     #ffcc00;
+            --teal:      #00ffff;
+            --green:     #00ff99;
+            --red:       #ff5555;
+            --border:    rgba(255,204,0,0.45);
+            --border-dim:rgba(255,255,255,0.1);
             --font-mono: 'Share Tech Mono', monospace;
             --font-ui:   'Rajdhani', sans-serif;
         }
-
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
@@ -32,399 +27,230 @@
             overflow: hidden;
             cursor: crosshair;
         }
-
         canvas { display: block; position: fixed; inset: 0; z-index: 0; }
 
-        /* ── SCANLINE OVERLAY ── */
+        /* scanlines */
         body::after {
             content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.03) 2px,
-                rgba(0,0,0,0.03) 4px
-            );
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
             pointer-events: none;
             z-index: 999;
         }
 
-        /* ── LOADING SCREEN ── */
+        /* ── BOOT SCREEN ── */
         #boot-screen {
-            position: fixed;
-            inset: 0;
+            position: fixed; inset: 0;
             background: var(--void);
             z-index: 200;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
             transition: opacity 0.8s ease;
         }
-
         .boot-logo {
             font-family: var(--font-ui);
-            font-size: clamp(40px, 8vw, 80px);
-            font-weight: 700;
-            letter-spacing: 0.3em;
-            color: #fff;
-            margin-bottom: 8px;
+            font-size: clamp(48px, 10vw, 90px);
+            font-weight: 700; letter-spacing: 0.3em; color: #fff;
+            margin-bottom: 12px;
             animation: flicker 3s infinite;
         }
         .boot-logo span { color: var(--amber); }
-
         @keyframes flicker {
-            0%, 95%, 100% { opacity: 1; }
-            96% { opacity: 0.7; }
-            97% { opacity: 1; }
-            98% { opacity: 0.5; }
-            99% { opacity: 1; }
+            0%,95%,100%{opacity:1} 96%{opacity:.7} 97%{opacity:1} 98%{opacity:.5} 99%{opacity:1}
         }
-
-        .boot-line {
-            font-size: 11px;
-            letter-spacing: 0.15em;
-            color: rgba(255,157,0,0.5);
-            height: 16px;
-        }
+        .boot-line { font-size: 12px; letter-spacing: 0.15em; color: rgba(255,170,0,0.4); height: 18px; }
         .boot-line.active { color: var(--amber); }
-        .boot-line.done { color: var(--green); }
-        .boot-line.done::before { content: '✓ '; }
-        .boot-line.active::before { content: '> '; animation: blink-cur 0.6s step-end infinite; }
-        @keyframes blink-cur { 50% { opacity: 0; } }
+        .boot-line.done   { color: var(--green); }
+        .boot-line.done::before  { content: '✓ '; }
+        .boot-line.active::before { content: '> '; animation: blink 0.6s step-end infinite; }
+        @keyframes blink { 50%{opacity:0} }
+        #boot-bar-wrap { width: 300px; height: 2px; background: rgba(255,170,0,0.15); margin-top: 28px; overflow: hidden; }
+        #boot-bar { height: 100%; background: var(--amber); width: 0%; transition: width .3s ease; box-shadow: 0 0 10px var(--amber); }
 
-        #boot-bar-wrap {
-            width: 280px;
-            height: 2px;
-            background: rgba(255,157,0,0.15);
-            margin-top: 24px;
-            position: relative;
-            overflow: hidden;
-        }
-        #boot-bar {
-            height: 100%;
-            background: var(--amber);
-            width: 0%;
-            transition: width 0.3s ease;
-            box-shadow: 0 0 8px var(--amber);
-        }
+        /* ── CORNER BRACKETS ── */
+        .bracket { position: fixed; width: 22px; height: 22px; z-index: 50; pointer-events: none; }
+        .bracket-tl { top:16px; left:16px;  border-top: 1px solid var(--amber); border-left: 1px solid var(--amber); }
+        .bracket-tr { top:16px; right:16px; border-top: 1px solid var(--amber); border-right: 1px solid var(--amber); }
+        .bracket-bl { bottom:16px; left:16px;  border-bottom: 1px solid var(--amber); border-left: 1px solid var(--amber); }
+        .bracket-br { bottom:16px; right:16px; border-bottom: 1px solid var(--amber); border-right: 1px solid var(--amber); }
 
-        /* ── CORNER BRACKETS (decorative) ── */
-        .bracket {
-            position: fixed;
-            width: 20px;
-            height: 20px;
-            z-index: 50;
-            pointer-events: none;
-        }
-        .bracket-tl { top: 16px; left: 16px; border-top: 1px solid var(--amber); border-left: 1px solid var(--amber); }
-        .bracket-tr { top: 16px; right: 16px; border-top: 1px solid var(--amber); border-right: 1px solid var(--amber); }
-        .bracket-bl { bottom: 16px; left: 16px; border-bottom: 1px solid var(--amber); border-left: 1px solid var(--amber); }
-        .bracket-br { bottom: 16px; right: 16px; border-bottom: 1px solid var(--amber); border-right: 1px solid var(--amber); }
-
-        /* ── MAIN TELEMETRY PANEL ── */
+        /* ── TELEMETRY PANEL ── */
         #telemetry {
-            position: fixed;
-            top: 40px;
-            left: 40px;
-            z-index: 50;
-            width: 280px;
-            display: none;
-            flex-direction: column;
-            gap: 0;
+            position: fixed; top: 36px; left: 36px; z-index: 50;
+            width: 310px; display: none; flex-direction: column;
+            background: rgba(1,5,12,0.97);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 18px 20px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 60px rgba(0,0,0,0.95), 0 0 30px rgba(255,204,0,0.06);
         }
-
         .panel-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 10px;
+            padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px;
         }
-
         .live-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--green);
-            box-shadow: 0 0 8px var(--green);
-            animation: pulse-live 2s ease-in-out infinite;
-            flex-shrink: 0;
+            width: 9px; height: 9px; border-radius: 50%;
+            background: var(--green); box-shadow: 0 0 12px var(--green), 0 0 24px rgba(0,255,153,0.4);
+            animation: pulse-live 2s ease-in-out infinite; flex-shrink: 0;
         }
         @keyframes pulse-live {
-            0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
-            50% { opacity: 0.4; box-shadow: none; }
+            0%,100%{opacity:1;box-shadow:0 0 12px var(--green),0 0 24px rgba(0,255,153,0.4)} 50%{opacity:.4;box-shadow:none}
         }
-
         .panel-title {
-            font-family: var(--font-ui);
-            font-size: 11px;
-            letter-spacing: 0.35em;
-            font-weight: 600;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            flex: 1;
+            font-family: var(--font-ui); font-size: 12px; letter-spacing: 0.35em;
+            font-weight: 700; color: #ffffff; text-transform: uppercase; flex: 1;
         }
-
-        .mission-id {
-            font-size: 9px;
-            letter-spacing: 0.1em;
-            color: rgba(255,157,0,0.4);
-        }
+        .mission-id { font-size: 10px; letter-spacing: 0.1em; color: var(--amber); opacity: 0.7; }
 
         .telem-row {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            padding: 9px 0;
-            border-bottom: 1px solid var(--border-dim);
-            gap: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 0; border-bottom: 1px solid var(--border-dim); gap: 12px;
         }
         .telem-row:last-child { border-bottom: none; }
-
         .telem-key {
-            font-size: 9px;
-            letter-spacing: 0.2em;
-            color: rgba(255,157,0,0.45);
-            text-transform: uppercase;
-            padding-top: 2px;
-            flex-shrink: 0;
+            font-size: 10px; letter-spacing: 0.2em;
+            color: var(--amber); opacity: 0.7; text-transform: uppercase; flex-shrink: 0;
         }
-
-        .telem-val {
-            font-size: 16px;
-            color: #fff;
-            text-align: right;
-            line-height: 1.1;
-        }
+        .telem-val { font-size: 18px; color: #fff; text-align: right; line-height: 1.1; }
         .telem-val.big {
-            font-size: 22px;
-            color: var(--amber);
-            font-family: var(--font-ui);
-            font-weight: 700;
+            font-size: 24px; color: var(--amber);
+            font-family: var(--font-ui); font-weight: 700;
+            text-shadow: 0 0 12px rgba(255,204,0,0.5);
         }
         .telem-unit {
-            display: block;
-            font-size: 9px;
-            color: rgba(255,255,255,0.25);
-            letter-spacing: 0.1em;
-            margin-top: 1px;
+            display: block; font-size: 9px;
+            color: rgba(255,255,255,0.45); letter-spacing: 0.1em; margin-top: 2px;
         }
 
-        /* Visibility badge */
+        /* ── VISIBILITY BADGE — SUPER PROMINENT ── */
+        .vis-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 0; border-bottom: 1px solid var(--border-dim);
+        }
+        .vis-label-key {
+            font-size: 10px; letter-spacing: 0.2em;
+            color: var(--amber); opacity: 0.7; text-transform: uppercase;
+        }
         #vis-badge {
-            font-size: 10px;
-            letter-spacing: 0.15em;
-            padding: 3px 10px;
-            border-radius: 2px;
-            text-transform: uppercase;
-            font-family: var(--font-ui);
-            font-weight: 600;
+            font-size: 14px; letter-spacing: 0.15em; padding: 8px 20px;
+            border-radius: 4px; text-transform: uppercase;
+            font-family: var(--font-ui); font-weight: 700;
+            display: inline-flex; align-items: center; gap: 8px;
         }
-        .vis-day   { background: rgba(255,220,0,0.15); color: #ffdc00; border: 1px solid rgba(255,220,0,0.3); }
-        .vis-eclip { background: rgba(0,100,255,0.15); color: #4488ff; border: 1px solid rgba(0,100,255,0.3); }
+        .vis-day {
+            background: rgba(255,220,0,0.2);
+            color: #ffdd00;
+            border: 2px solid #ffdd00;
+            text-shadow: 0 0 10px #ffdd00;
+            box-shadow: 0 0 20px rgba(255,220,0,0.35), inset 0 0 12px rgba(255,220,0,0.1);
+        }
+        .vis-eclip {
+            background: rgba(60,120,255,0.2);
+            color: #7aabff;
+            border: 2px solid #7aabff;
+            text-shadow: 0 0 10px #7aabff;
+            box-shadow: 0 0 20px rgba(100,150,255,0.35), inset 0 0 12px rgba(100,150,255,0.1);
+        }
 
-        /* Refresh countdown */
-        #refresh-wrap {
-            margin-top: 16px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border-dim);
-        }
+        /* ── REFRESH BAR ── */
+        #refresh-wrap { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-dim); }
         .refresh-label {
-            font-size: 9px;
-            letter-spacing: 0.2em;
-            color: rgba(255,157,0,0.3);
-            text-transform: uppercase;
-            margin-bottom: 6px;
-            display: flex;
-            justify-content: space-between;
+            font-size: 10px; letter-spacing: 0.2em; color: var(--amber); opacity: 0.6;
+            text-transform: uppercase; margin-bottom: 8px;
+            display: flex; justify-content: space-between;
         }
-        #refresh-bar-wrap {
-            height: 2px;
-            background: rgba(255,157,0,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        #refresh-bar {
-            height: 100%;
-            background: var(--amber);
-            width: 100%;
-            box-shadow: 0 0 6px var(--amber);
-            transition: width 1s linear;
-        }
+        #countdown { color: #fff; opacity: 1; }
+        #refresh-bar-wrap { height: 3px; background: rgba(255,204,0,0.15); overflow: hidden; border-radius: 2px; }
+        #refresh-bar { height: 100%; background: var(--amber); width: 100%; box-shadow: 0 0 10px var(--amber); transition: width 1s linear; }
 
-        /* Error */
+        /* ── ERROR ── */
         #error-msg {
-            display: none;
-            margin-top: 12px;
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            color: var(--red);
-            padding: 8px 12px;
-            border: 1px solid rgba(255,68,68,0.3);
-            background: rgba(255,68,68,0.05);
+            display: none; margin-top: 12px; font-size: 11px; letter-spacing: 0.1em;
+            color: var(--red); padding: 10px 14px;
+            border: 1px solid rgba(255,85,85,0.5); background: rgba(255,85,85,0.1);
+            border-radius: 3px;
         }
         #error-msg::before { content: '⚠ '; }
 
-        /* ── TOP CENTER — MISSION CLOCK ── */
+        /* ── MISSION CLOCK ── */
         #mission-clock {
-            position: fixed;
-            top: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 50;
-            text-align: center;
-            display: none;
+            position: fixed; top: 36px; left: 50%; transform: translateX(-50%);
+            z-index: 50; text-align: center; display: none;
         }
-        .clock-label {
-            font-size: 9px;
-            letter-spacing: 0.35em;
-            color: rgba(255,157,0,0.35);
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-        .clock-time {
-            font-family: var(--font-ui);
-            font-size: clamp(18px, 2.5vw, 28px);
-            font-weight: 300;
-            color: rgba(255,255,255,0.15);
-            letter-spacing: 0.1em;
-        }
+        .clock-label { font-size: 9px; letter-spacing: 0.35em; color: var(--amber); opacity: 0.5; text-transform: uppercase; margin-bottom: 4px; }
+        .clock-time { font-family: var(--font-ui); font-size: clamp(20px,2.5vw,30px); font-weight: 300; color: rgba(255,255,255,0.35); letter-spacing: 0.1em; }
 
-        /* ── BOTTOM CENTER — CONTROLS HINT ── */
+        /* ── CONTROLS HINT ── */
         #controls-hint {
-            position: fixed;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 50;
-            display: none;
-            gap: 24px;
-            align-items: center;
+            position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
+            z-index: 50; display: none; gap: 24px; align-items: center;
         }
-        .hint-item {
-            font-size: 9px;
-            letter-spacing: 0.2em;
-            color: rgba(255,157,0,0.25);
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-        .hint-sep {
-            width: 1px;
-            height: 12px;
-            background: rgba(255,157,0,0.15);
-        }
+        .hint-item { font-size: 10px; letter-spacing: 0.2em; color: rgba(255,204,0,0.5); text-transform: uppercase; white-space: nowrap; }
+        .hint-sep  { width: 1px; height: 12px; background: rgba(255,204,0,0.25); }
 
-        /* ── TOP RIGHT — ORBITAL DATA ── */
+        /* ── ORBITAL PANEL ── */
         #orbital-panel {
-            position: fixed;
-            top: 40px;
-            right: 40px;
-            z-index: 50;
-            width: 200px;
-            display: none;
-            flex-direction: column;
-            gap: 0;
+            position: fixed; top: 36px; right: 36px; z-index: 50; width: 210px;
+            display: none; flex-direction: column;
+            background: rgba(1,5,12,0.97);
+            border: 1px solid var(--border); border-radius: 4px;
+            padding: 16px 18px; backdrop-filter: blur(20px);
+            box-shadow: 0 0 60px rgba(0,0,0,0.95);
             text-align: right;
         }
         .orbital-title {
-            font-size: 9px;
-            letter-spacing: 0.3em;
-            color: rgba(255,157,0,0.35);
-            text-transform: uppercase;
-            margin-bottom: 14px;
-            padding-bottom: 10px;
+            font-size: 10px; letter-spacing: 0.3em; color: var(--amber); opacity: 0.6;
+            text-transform: uppercase; margin-bottom: 12px; padding-bottom: 10px;
             border-bottom: 1px solid var(--border-dim);
         }
-        .orbital-row {
-            padding: 7px 0;
-            border-bottom: 1px solid var(--border-dim);
-        }
+        .orbital-row { padding: 8px 0; border-bottom: 1px solid var(--border-dim); }
         .orbital-row:last-child { border-bottom: none; }
-        .orbital-key {
-            font-size: 8px;
-            letter-spacing: 0.2em;
-            color: rgba(255,157,0,0.3);
-            text-transform: uppercase;
-        }
-        .orbital-val {
-            font-family: var(--font-ui);
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--teal);
-            line-height: 1.1;
-        }
+        .orbital-key { font-size: 9px; letter-spacing: 0.2em; color: var(--amber); opacity: 0.55; text-transform: uppercase; }
+        .orbital-val { font-family: var(--font-ui); font-size: 22px; font-weight: 700; color: var(--teal); line-height: 1.2;
+            text-shadow: 0 0 14px rgba(0,255,255,0.6); }
 
         /* ── ISS LABEL ── */
         #iss-label {
-            position: fixed;
-            z-index: 50;
-            pointer-events: none;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
+            position: fixed; z-index: 50; pointer-events: none; display: none;
+            flex-direction: column; align-items: center; gap: 4px;
             transform: translate(-50%, -120%);
         }
-        .iss-label-text {
-            font-size: 9px;
-            letter-spacing: 0.2em;
-            color: var(--teal);
-            text-transform: uppercase;
-            white-space: nowrap;
-            text-shadow: 0 0 10px var(--teal);
-        }
-        .iss-label-line {
-            width: 1px;
-            height: 20px;
-            background: linear-gradient(to bottom, var(--teal), transparent);
-        }
+        .iss-label-text { font-size: 11px; letter-spacing: 0.2em; color: var(--teal); text-transform: uppercase; white-space: nowrap; text-shadow: 0 0 14px var(--teal), 0 0 28px rgba(0,255,255,0.4); font-weight: 700; }
+        .iss-label-line { width: 1px; height: 22px; background: linear-gradient(to bottom, var(--teal), transparent); }
 
-        /* ── BOTTOM RIGHT — OBJECT INFO ── */
-        #object-info {
-            position: fixed;
-            bottom: 40px;
-            right: 40px;
-            z-index: 50;
-            display: none;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 2px;
-        }
-        .obj-name {
-            font-family: var(--font-ui);
-            font-size: clamp(28px, 4vw, 48px);
-            font-weight: 700;
-            color: rgba(255,255,255,0.04);
-            letter-spacing: 0.05em;
-            line-height: 1;
-        }
-        .obj-sub {
-            font-size: 9px;
-            letter-spacing: 0.25em;
-            color: rgba(255,157,0,0.2);
-            text-transform: uppercase;
-        }
+        /* ── OBJECT WATERMARK ── */
+        #object-info { position: fixed; bottom: 36px; right: 36px; z-index: 50; display: none; flex-direction: column; align-items: flex-end; gap: 2px; }
+        .obj-name { font-family: var(--font-ui); font-size: clamp(32px,4vw,52px); font-weight: 700; color: rgba(255,255,255,0.05); letter-spacing: 0.05em; line-height: 1; }
+        .obj-sub  { font-size: 9px; letter-spacing: 0.25em; color: rgba(255,204,0,0.25); text-transform: uppercase; }
 
+        /* ── MOBILE ── */
         @media (max-width: 700px) {
-            #telemetry { top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90vw; }
-            #orbital-panel, #mission-clock { display: none !important; }
+            #telemetry {
+                top: auto; bottom: 0; left: 0; right: 0;
+                width: 100%; border-radius: 16px 16px 0 0;
+                transform: none; padding: 20px 16px 28px;
+                border-left: none; border-right: none; border-bottom: none;
+                max-height: 75vh; overflow-y: auto;
+            }
+            .telem-val.big { font-size: 22px; }
+            .telem-val     { font-size: 17px; }
+            .telem-key     { font-size: 11px; }
+            #vis-badge     { font-size: 15px; padding: 10px 22px; }
+            .vis-row       { padding: 14px 0; }
+            .telem-row     { padding: 12px 0; }
+            #orbital-panel, #mission-clock, #object-info, #controls-hint { display: none !important; }
+            .bracket { display: none; }
         }
     </style>
 </head>
 <body>
 
-<!-- Corner brackets -->
 <div class="bracket bracket-tl"></div>
 <div class="bracket bracket-tr"></div>
 <div class="bracket bracket-bl"></div>
 <div class="bracket bracket-br"></div>
 
-<!-- Boot screen -->
+<!-- Boot -->
 <div id="boot-screen">
     <div class="boot-logo">IS<span>S</span></div>
     <div class="boot-line" id="b1">INITIALIZING TRACKING SYSTEMS</div>
@@ -436,18 +262,17 @@
 
 <!-- Mission clock -->
 <div id="mission-clock">
-    <div class="clock-label">Mission Elapsed</div>
+    <div class="clock-label">Session Elapsed</div>
     <div class="clock-time" id="clock-display">--:--:--</div>
 </div>
 
-<!-- Main telemetry panel -->
+<!-- Telemetry -->
 <div id="telemetry">
     <div class="panel-header">
         <div class="live-dot"></div>
         <div class="panel-title">ISS Telemetry</div>
         <div class="mission-id">ZARYA · 25544</div>
     </div>
-
     <div class="telem-row">
         <div class="telem-key">Latitude</div>
         <div class="telem-val big" id="lat">--</div>
@@ -459,31 +284,27 @@
     <div class="telem-row">
         <div class="telem-key">Altitude</div>
         <div class="telem-val">
-            <span id="alt" style="font-size:20px; color: var(--teal); font-family: var(--font-ui); font-weight:600;">--</span>
+            <span id="alt" style="font-size:24px;color:var(--teal);font-family:var(--font-ui);font-weight:700;text-shadow:0 0 14px var(--teal),0 0 28px rgba(0,255,255,0.4)">--</span>
             <span class="telem-unit">KILOMETERS</span>
         </div>
     </div>
     <div class="telem-row">
         <div class="telem-key">Velocity</div>
         <div class="telem-val">
-            <span id="vel" style="font-size:20px; color: var(--teal); font-family: var(--font-ui); font-weight:600;">--</span>
+            <span id="vel" style="font-size:24px;color:var(--teal);font-family:var(--font-ui);font-weight:700;text-shadow:0 0 14px var(--teal),0 0 28px rgba(0,255,255,0.4)">--</span>
             <span class="telem-unit">KM / HOUR</span>
         </div>
     </div>
-    <div class="telem-row">
-        <div class="telem-key">Visibility</div>
-        <div class="telem-val"><span id="vis-badge" class="vis-eclip">--</span></div>
+    <div class="vis-row">
+        <div class="vis-label-key">Visibility</div>
+        <span id="vis-badge" class="vis-eclip">● Eclipsed</span>
     </div>
     <div class="telem-row" style="border:none;">
-        <div class="telem-key">Last Fix</div>
-        <div class="telem-val" style="font-size:12px; color:rgba(255,255,255,0.3);" id="time">--</div>
+        <div class="telem-key">Data As Of</div>
+        <div class="telem-val" style="font-size:13px;color:rgba(255,255,255,0.7);" id="time">--</div>
     </div>
-
     <div id="refresh-wrap">
-        <div class="refresh-label">
-            <span>Next update</span>
-            <span id="countdown">10s</span>
-        </div>
+        <div class="refresh-label"><span>Next update</span><span id="countdown">10s</span></div>
         <div id="refresh-bar-wrap"><div id="refresh-bar"></div></div>
     </div>
     <div id="error-msg">Signal lost. Retrying...</div>
@@ -491,14 +312,14 @@
 
 <!-- Orbital panel -->
 <div id="orbital-panel">
-    <div class="orbital-title">Orbital Parameters</div>
+    <div class="orbital-title">Orbital Data</div>
     <div class="orbital-row">
         <div class="orbital-key">Inclination</div>
         <div class="orbital-val">51.6°</div>
     </div>
     <div class="orbital-row">
         <div class="orbital-key">Period</div>
-        <div class="orbital-val">92.9<span style="font-size:11px; color:rgba(0,229,255,0.5)"> min</span></div>
+        <div class="orbital-val">92.9<span style="font-size:12px;color:rgba(0,255,255,0.5)"> min</span></div>
     </div>
     <div class="orbital-row">
         <div class="orbital-key">Orbits / Day</div>
@@ -525,7 +346,7 @@
     <span class="hint-item">Updates every 10s</span>
 </div>
 
-<!-- Object info watermark -->
+<!-- Watermark -->
 <div id="object-info">
     <div class="obj-name">ISS</div>
     <div class="obj-sub">International Space Station</div>
@@ -533,29 +354,24 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
 <script>
-    // ── Boot sequence ──
+    // Boot sequence
     const bootLines = ['b1','b2','b3','b4'];
     const bootBar = document.getElementById('boot-bar');
     let bootStep = 0;
-
     function runBoot() {
         if (bootStep < bootLines.length) {
-            if (bootStep > 0) {
-                document.getElementById(bootLines[bootStep-1]).className = 'boot-line done';
-            }
+            if (bootStep > 0) document.getElementById(bootLines[bootStep-1]).className = 'boot-line done';
             document.getElementById(bootLines[bootStep]).className = 'boot-line active';
-            bootBar.style.width = ((bootStep + 1) / bootLines.length * 100) + '%';
+            bootBar.style.width = ((bootStep+1)/bootLines.length*100)+'%';
             bootStep++;
-            setTimeout(runBoot, 600 + Math.random() * 400);
+            setTimeout(runBoot, 550 + Math.random()*350);
         } else {
             document.getElementById(bootLines[bootLines.length-1]).className = 'boot-line done';
             bootBar.style.width = '100%';
             setTimeout(hideBoot, 500);
         }
     }
-
     function hideBoot() {
         const boot = document.getElementById('boot-screen');
         boot.style.opacity = '0';
@@ -569,34 +385,28 @@
             document.getElementById('iss-label').style.display = 'flex';
         }, 800);
     }
-
     setTimeout(runBoot, 400);
 
-    // ── Mission clock ──
+    // Mission clock
     const startTime = Date.now();
     setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const h = String(Math.floor(elapsed / 3600)).padStart(2,'0');
-        const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
-        const s = String(elapsed % 60).padStart(2,'0');
+        const e = Math.floor((Date.now()-startTime)/1000);
+        const h = String(Math.floor(e/3600)).padStart(2,'0');
+        const m = String(Math.floor((e%3600)/60)).padStart(2,'0');
+        const s = String(e%60).padStart(2,'0');
         document.getElementById('clock-display').textContent = `${h}:${m}:${s}`;
     }, 1000);
 
-    // ── Three.js ──
-    let scene, camera, renderer, controls;
-    let earth, issMesh, issGlow, sunLight, orbitLine;
-    let issScreenPos = { x: 0, y: 0 };
-
+    // Three.js
+    let scene, camera, renderer, controls, earth, earthGroup, issMesh, issGlow, sunLight, orbitLine;
     const EARTH_RADIUS = 5;
-    const ISS_API_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
-
-    // Orbit trail positions
+    const ISS_API_URL  = 'https://api.wheretheiss.at/v1/satellites/25544';
     const orbitHistory = [];
-    const MAX_TRAIL = 120;
+    const MAX_TRAIL    = 120;
 
     function init() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        scene  = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
         camera.position.set(0, 4, 16);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -607,85 +417,56 @@
         document.body.appendChild(renderer.domElement);
 
         controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.minDistance = 6.5;
-        controls.maxDistance = 40;
+        controls.enableDamping = true; controls.dampingFactor = 0.05;
+        controls.minDistance = 6.5; controls.maxDistance = 40;
         controls.enablePan = false;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.15;
+        controls.autoRotate = false;
 
-        // Lights
-        const ambientLight = new THREE.AmbientLight(0x111133, 0.8);
-        scene.add(ambientLight);
+        scene.add(new THREE.AmbientLight(0x111133, 0.8));
         sunLight = new THREE.DirectionalLight(0xfff5e0, 2.2);
         scene.add(sunLight);
 
-        // Earth
-        const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
         const loader = new THREE.TextureLoader();
         const earthMat = new THREE.MeshPhongMaterial({
             map:         loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
             bumpMap:     loader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
             bumpScale:   0.06,
             specularMap: loader.load('https://unpkg.com/three-globe/example/img/earth-water.png'),
-            specular:    new THREE.Color(0x334466),
-            shininess:   20
+            specular:    new THREE.Color(0x334466), shininess: 20
         });
-        earth = new THREE.Mesh(earthGeo, earthMat);
-        earth.rotation.y = -Math.PI / 2;
-        scene.add(earth);
+        earth = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS,64,64), earthMat);
+        earthGroup = new THREE.Group();
+        earthGroup.add(earth);
+        scene.add(earthGroup);
 
-        // Atmosphere glow
-        const atmGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.02, 64, 64);
-        const atmMat = new THREE.MeshPhongMaterial({
-            color: 0x4488ff,
-            transparent: true,
-            opacity: 0.06,
-            side: THREE.FrontSide
-        });
-        scene.add(new THREE.Mesh(atmGeo, atmMat));
+        // Atmosphere
+        earthGroup.add(new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_RADIUS*1.02,64,64),
+            new THREE.MeshPhongMaterial({ color:0x4488ff, transparent:true, opacity:0.06 })
+        ));
 
-        // ISS dot — glowing teal
-        const issGeo = new THREE.SphereGeometry(0.07, 16, 16);
-        const issMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
-        issMesh = new THREE.Mesh(issGeo, issMat);
-        scene.add(issMesh);
-
-        // ISS glow sprite
-        const glowGeo = new THREE.SphereGeometry(0.18, 16, 16);
-        const glowMat = new THREE.MeshBasicMaterial({
-            color: 0x00e5ff,
-            transparent: true,
-            opacity: 0.25
-        });
-        issGlow = new THREE.Mesh(glowGeo, glowMat);
+        // ISS dot — child of earthGroup so it rotates with the Earth texture
+        issMesh = new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16), new THREE.MeshBasicMaterial({ color:0x00e5ff }));
+        earthGroup.add(issMesh);
+        issGlow = new THREE.Mesh(new THREE.SphereGeometry(0.2,16,16), new THREE.MeshBasicMaterial({ color:0x00e5ff, transparent:true, opacity:0.25 }));
         issMesh.add(issGlow);
 
-        // Orbit trail (line)
+        // Orbit trail — child of earthGroup so it rotates with the Earth
         const trailGeo = new THREE.BufferGeometry();
-        const trailPositions = new Float32Array(MAX_TRAIL * 3);
-        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-        trailGeo.setDrawRange(0, 0);
-        const trailMat = new THREE.LineBasicMaterial({
-            color: 0x00e5ff,
-            transparent: true,
-            opacity: 0.25
-        });
-        orbitLine = new THREE.Line(trailGeo, trailMat);
-        scene.add(orbitLine);
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_TRAIL*3), 3));
+        trailGeo.setDrawRange(0,0);
+        orbitLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color:0x00e5ff, transparent:true, opacity:0.3 }));
+        earthGroup.add(orbitLine);
 
         // Stars
+        const starPos = new Float32Array(5000*3);
+        for (let i=0; i<5000*3; i++) starPos[i] = (Math.random()-.5)*300;
         const starGeo = new THREE.BufferGeometry();
-        const starCount = 5000;
-        const starPos = new Float32Array(starCount * 3);
-        for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 300;
-        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, sizeAttenuation: true });
-        scene.add(new THREE.Points(starGeo, starMat));
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+        scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xffffff, size:0.12 })));
 
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
@@ -695,127 +476,124 @@
         animate();
     }
 
-    function getPositionFromLatLon(lat, lon, radius) {
-        const phi   = (90 - lat) * (Math.PI / 180);
-        const theta = (lon + 180) * (Math.PI / 180);
+    // Convert lat/lon to a local 3D position (used for ISS inside earthGroup)
+    function latLonToVec3(lat, lon, r) {
+        const phi   = (90-lat)*(Math.PI/180);
+        const theta = (lon+180)*(Math.PI/180);
         return new THREE.Vector3(
-            -(radius * Math.sin(phi) * Math.cos(theta)),
-             (radius * Math.cos(phi)),
-             (radius * Math.sin(phi) * Math.sin(theta))
+            -(r*Math.sin(phi)*Math.cos(theta)),
+             (r*Math.cos(phi)),
+             (r*Math.sin(phi)*Math.sin(theta))
         );
     }
 
-    // ── Refresh countdown ──
+    // Convert lat/lon to world-space position (used for sun, ignores Earth rotation)
+    function latLonToWorld(lat, lon, r) {
+        const phi   = (90-lat)*(Math.PI/180);
+        const theta = lon*(Math.PI/180);
+        return new THREE.Vector3(
+             r*Math.sin(phi)*Math.cos(theta),
+             r*Math.cos(phi),
+             r*Math.sin(phi)*Math.sin(theta)
+        );
+    }
+
     let refreshTimer = 10;
-    const refreshBar = document.getElementById('refresh-bar');
+    const refreshBar  = document.getElementById('refresh-bar');
     const countdownEl = document.getElementById('countdown');
 
     function startRefreshCycle() {
         refreshTimer = 10;
         refreshBar.style.transition = 'none';
         refreshBar.style.width = '100%';
-        setTimeout(() => {
-            refreshBar.style.transition = 'width 10s linear';
-            refreshBar.style.width = '0%';
-        }, 50);
-
+        setTimeout(() => { refreshBar.style.transition = 'width 10s linear'; refreshBar.style.width = '0%'; }, 50);
         const tick = setInterval(() => {
             refreshTimer--;
             countdownEl.textContent = refreshTimer + 's';
-            if (refreshTimer <= 0) {
-                clearInterval(tick);
-                fetchISSData();
-                startRefreshCycle();
-            }
+            if (refreshTimer <= 0) { clearInterval(tick); fetchISSData(); startRefreshCycle(); }
         }, 1000);
     }
 
     async function fetchISSData() {
         try {
             const res = await fetch(ISS_API_URL);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
+            if (!res.ok) throw new Error('HTTP '+res.status);
             const d = await res.json();
 
-            const lat = d.latitude.toFixed(4);
-            const lon = d.longitude.toFixed(4);
-
-            document.getElementById('lat').textContent   = lat + '°';
-            document.getElementById('lon').textContent   = lon + '°';
-            document.getElementById('alt').textContent   = d.altitude.toFixed(1);
-            document.getElementById('vel').textContent   = Math.round(d.velocity).toLocaleString();
-            document.getElementById('time').textContent  = new Date(d.timestamp * 1000).toLocaleTimeString();
-            document.getElementById('apogee').textContent = (d.altitude + 8).toFixed(0) + '<span style="font-size:11px; color:rgba(0,229,255,0.5)"> km</span>';
-
-            // Visibility badge
-            const visBadge = document.getElementById('vis-badge');
-            if (d.visibility === 'daylight') {
-                visBadge.textContent = '☀ Daylight';
-                visBadge.className = 'vis-day';
-            } else {
-                visBadge.textContent = '● Eclipsed';
-                visBadge.className = 'vis-eclip';
-            }
-
+            document.getElementById('lat').textContent  = d.latitude.toFixed(4)+'°';
+            document.getElementById('lon').textContent  = d.longitude.toFixed(4)+'°';
+            document.getElementById('alt').textContent  = d.altitude.toFixed(1);
+            document.getElementById('vel').textContent  = Math.round(d.velocity).toLocaleString();
+            const ts = new Date(d.timestamp*1000);
+            const localTime = ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            const utcTime   = ts.toUTCString().match(/\d{2}:\d{2}:\d{2}/)[0];
+            document.getElementById('time').textContent = localTime + ' · ' + utcTime + ' UTC';
+            document.getElementById('apogee').textContent = (d.altitude+8).toFixed(0)+' km';
             document.getElementById('error-msg').style.display = 'none';
 
-            // Update ISS position
-            const altScale = EARTH_RADIUS * (1 + d.altitude / 6371);
-            const issPos = getPositionFromLatLon(d.latitude, d.longitude, altScale);
-            issMesh.position.copy(issPos);
+            const vis = document.getElementById('vis-badge');
+            if (d.visibility === 'daylight') {
+                vis.textContent = '☀ Daylight';
+                vis.className = 'vis-day';
+            } else {
+                vis.textContent = '● Eclipsed';
+                vis.className = 'vis-eclip';
+            }
 
-            // Add to orbit trail
+            const altScale = EARTH_RADIUS*(1+d.altitude/6371);
+            const issPos   = latLonToVec3(d.latitude, d.longitude, altScale);
+            issMesh.position.copy(issPos);
             orbitHistory.push(issPos.clone());
             if (orbitHistory.length > MAX_TRAIL) orbitHistory.shift();
-            updateOrbitTrail();
+            updateTrail();
 
-            // Sun position
-            const sunPos = getPositionFromLatLon(d.solar_lat, d.solar_lon, EARTH_RADIUS * 12);
-            sunLight.position.copy(sunPos);
-
+            sunLight.position.copy(latLonToWorld(d.solar_lat, d.solar_lon, EARTH_RADIUS*12));
         } catch(e) {
             console.error(e);
             document.getElementById('error-msg').style.display = 'block';
         }
     }
 
-    function updateOrbitTrail() {
-        const positions = orbitLine.geometry.attributes.position.array;
-        for (let i = 0; i < orbitHistory.length; i++) {
-            positions[i*3]   = orbitHistory[i].x;
-            positions[i*3+1] = orbitHistory[i].y;
-            positions[i*3+2] = orbitHistory[i].z;
+    function updateTrail() {
+        const pos = orbitLine.geometry.attributes.position.array;
+        for (let i=0; i<orbitHistory.length; i++) {
+            pos[i*3]=orbitHistory[i].x; pos[i*3+1]=orbitHistory[i].y; pos[i*3+2]=orbitHistory[i].z;
         }
         orbitLine.geometry.setDrawRange(0, orbitHistory.length);
         orbitLine.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Project ISS 3D position to screen for label
-    const issLabel = document.getElementById('iss-label');
-    function updateISSLabel() {
-        if (!issMesh) return;
-        const vector = issMesh.position.clone().project(camera);
-        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
-        if (vector.z < 1) {
-            issLabel.style.left = x + 'px';
-            issLabel.style.top  = y + 'px';
-            issLabel.style.opacity = '1';
-        } else {
-            issLabel.style.opacity = '0';
-        }
+    function updateEarthRotation() {
+        const now = new Date();
+        const utcHours = now.getUTCHours() + now.getUTCMinutes()/60 + now.getUTCSeconds()/3600;
+        // Earth rotates 360° in 24 hrs; texture offset so 0° lon aligns correctly
+        earthGroup.rotation.y = (utcHours / 24) * Math.PI * 2 - Math.PI/2;
     }
 
-    // Glow pulse
+    const issLabel = document.getElementById('iss-label');
+    function updateLabel() {
+        if (!issMesh) return;
+        // Get ISS world position (it's inside earthGroup which rotates)
+        const worldPos = new THREE.Vector3();
+        issMesh.getWorldPosition(worldPos);
+        const v = worldPos.clone().project(camera);
+        const x = (v.x*.5+.5)*window.innerWidth;
+        const y = (-v.y*.5+.5)*window.innerHeight;
+        if (v.z < 1) { issLabel.style.left=x+'px'; issLabel.style.top=y+'px'; issLabel.style.opacity='1'; }
+        else { issLabel.style.opacity='0'; }
+    }
+
     let glowT = 0;
     function animate() {
         requestAnimationFrame(animate);
         glowT += 0.04;
         if (issGlow) {
-            issGlow.material.opacity = 0.15 + 0.15 * Math.sin(glowT);
-            issGlow.scale.setScalar(1 + 0.2 * Math.sin(glowT * 0.8));
+            issGlow.material.opacity = 0.15+0.15*Math.sin(glowT);
+            issGlow.scale.setScalar(1+0.2*Math.sin(glowT*0.8));
         }
+        updateEarthRotation();
         controls.update();
-        updateISSLabel();
+        updateLabel();
         renderer.render(scene, camera);
     }
 
