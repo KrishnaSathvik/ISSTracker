@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#020d1a"/>
+      <stop offset="100%" stop-color="#020408"/>
+    </radialGradient>
+    <radialGradient id="earth" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1a6bbf"/>
+      <stop offset="60%" stop-color="#0d4a8a"/>
+      <stop offset="100%" stop-color="#061a33"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="blur8"><feGaussianBlur stdDeviation="8"/></filter>
+    <clipPath id="clip"><rect width="1200" height="630"/></clipPath>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Stars -->
+  <g fill="white" opacity="0.6">
+    <circle cx="80" cy="50" r="1"/><circle cx="200" cy="120" r="1.2"/><circle cx="350" cy="40" r="0.8"/>
+    <circle cx="500" cy="90" r="1"/><circle cx="700" cy="30" r="1.3"/><circle cx="900" cy="80" r="0.9"/>
+    <circle cx="1050" cy="45" r="1.1"/><circle cx="1150" cy="110" r="0.8"/><circle cx="60" cy="200" r="1"/>
+    <circle cx="160" cy="320" r="0.9"/><circle cx="1100" cy="250" r="1.2"/><circle cx="1180" cy="380" r="0.8"/>
+    <circle cx="40" cy="450" r="1"/><circle cx="120" cy="560" r="1.1"/><circle cx="1160" cy="530" r="0.9"/>
+    <circle cx="750" cy="580" r="1"/><circle cx="850" cy="560" r="0.8"/><circle cx="950" cy="590" r="1.2"/>
+  </g>
+
+  <!-- Earth glow halo -->
+  <circle cx="820" cy="315" r="240" fill="url(#glow)" filter="url(#blur8)"/>
+
+  <!-- Earth -->
+  <circle cx="820" cy="315" r="210" fill="url(#earth)" clip-path="url(#clip)"/>
+
+  <!-- Earth atmosphere rim -->
+  <circle cx="820" cy="315" r="210" fill="none" stroke="#4488ff" stroke-width="6" opacity="0.25"/>
+  <circle cx="820" cy="315" r="218" fill="none" stroke="#4488ff" stroke-width="3" opacity="0.1"/>
+
+  <!-- Continent blobs (stylised) -->
+  <g fill="#1e7a3a" opacity="0.6">
+    <ellipse cx="760" cy="260" rx="55" ry="35" transform="rotate(-20,760,260)"/>
+    <ellipse cx="840" cy="290" rx="30" ry="45" transform="rotate(10,840,290)"/>
+    <ellipse cx="880" cy="340" rx="40" ry="25" transform="rotate(-5,880,340)"/>
+    <ellipse cx="770" cy="350" rx="25" ry="18"/>
+    <ellipse cx="720" cy="310" rx="20" ry="30" transform="rotate(15,720,310)"/>
+  </g>
+
+  <!-- Night side dark overlay -->
+  <path d="M820,105 Q650,150 640,315 Q650,480 820,525 Z" fill="#020408" opacity="0.55" clip-path="url(#clip)"/>
+
+  <!-- City lights on night side -->
+  <g fill="#ffcc44" opacity="0.7" filter="url(#blur2)">
+    <circle cx="690" cy="250" r="3"/><circle cx="675" cy="270" r="2"/><circle cx="700" cy="290" r="2.5"/>
+    <circle cx="680" cy="310" r="2"/><circle cx="695" cy="330" r="3"/><circle cx="670" cy="350" r="2"/>
+    <circle cx="710" cy="360" r="2.5"/><circle cx="685" cy="380" r="2"/>
+  </g>
+
+  <!-- ISS orbit arc -->
+  <ellipse cx="820" cy="315" rx="255" ry="120" fill="none" stroke="#00e5ff" stroke-width="1.5"
+    stroke-dasharray="8 6" opacity="0.35" transform="rotate(-25,820,315)"/>
+
+  <!-- ISS dot -->
+  <circle cx="600" cy="195" r="10" fill="#00e5ff" opacity="0.9"/>
+  <circle cx="600" cy="195" r="18" fill="#00e5ff" opacity="0.2"/>
+  <circle cx="600" cy="195" r="26" fill="#00e5ff" opacity="0.08"/>
+
+  <!-- ISS label -->
+  <text x="618" y="188" font-family="monospace" font-size="14" fill="#00e5ff" opacity="0.9" letter-spacing="2">▲ ISS</text>
+
+  <!-- Corner brackets -->
+  <path d="M20,20 L20,50 M20,20 L50,20" stroke="#ffcc00" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <path d="M1180,20 L1180,50 M1180,20 L1150,20" stroke="#ffcc00" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <path d="M20,610 L20,580 M20,610 L50,610" stroke="#ffcc00" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <path d="M1180,610 L1180,580 M1180,610 L1150,610" stroke="#ffcc00" stroke-width="1.5" fill="none" opacity="0.7"/>
+
+  <!-- Left panel background -->
+  <rect x="40" y="80" width="380" height="420" rx="6" fill="#010508" opacity="0.85" stroke="#ffcc00" stroke-width="0.8" stroke-opacity="0.4"/>
+
+  <!-- Live dot -->
+  <circle cx="68" cy="118" r="5" fill="#00ff99"/>
+  <circle cx="68" cy="118" r="9" fill="#00ff99" opacity="0.2"/>
+
+  <!-- Panel title -->
+  <text x="84" y="123" font-family="sans-serif" font-size="13" font-weight="700" fill="white" letter-spacing="4">ISS TELEMETRY</text>
+  <text x="310" y="123" font-family="monospace" font-size="10" fill="#ffcc00" opacity="0.6" letter-spacing="1">ZARYA · 25544</text>
+
+  <!-- Divider -->
+  <line x1="55" y1="136" x2="405" y2="136" stroke="#ffcc00" stroke-width="0.5" opacity="0.4"/>
+
+  <!-- Telemetry rows -->
+  <text x="60" y="175" font-family="monospace" font-size="11" fill="#ffcc00" opacity="0.65" letter-spacing="3">LATITUDE</text>
+  <text x="405" y="175" font-family="sans-serif" font-size="26" font-weight="700" fill="#ffcc00" text-anchor="end">-48.7085°</text>
+  <line x1="55" y1="190" x2="405" y2="190" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+
+  <text x="60" y="230" font-family="monospace" font-size="11" fill="#ffcc00" opacity="0.65" letter-spacing="3">LONGITUDE</text>
+  <text x="405" y="230" font-family="sans-serif" font-size="26" font-weight="700" fill="#ffcc00" text-anchor="end">66.5398°</text>
+  <line x1="55" y1="245" x2="405" y2="245" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+
+  <text x="60" y="285" font-family="monospace" font-size="11" fill="#ffcc00" opacity="0.65" letter-spacing="3">ALTITUDE</text>
+  <text x="405" y="282" font-family="sans-serif" font-size="26" font-weight="700" fill="#00ffff" text-anchor="end">444.1</text>
+  <text x="405" y="297" font-family="monospace" font-size="9" fill="rgba(255,255,255,0.4)" text-anchor="end" letter-spacing="2">KILOMETERS</text>
+  <line x1="55" y1="308" x2="405" y2="308" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+
+  <text x="60" y="348" font-family="monospace" font-size="11" fill="#ffcc00" opacity="0.65" letter-spacing="3">VELOCITY</text>
+  <text x="405" y="345" font-family="sans-serif" font-size="26" font-weight="700" fill="#00ffff" text-anchor="end">27,512</text>
+  <text x="405" y="360" font-family="monospace" font-size="9" fill="rgba(255,255,255,0.4)" text-anchor="end" letter-spacing="2">KM / HOUR</text>
+  <line x1="55" y1="372" x2="405" y2="372" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+
+  <!-- Visibility badge -->
+  <text x="60" y="415" font-family="monospace" font-size="11" fill="#ffcc00" opacity="0.65" letter-spacing="3">VISIBILITY</text>
+  <rect x="270" y="396" width="130" height="34" rx="4" fill="rgba(255,220,0,0.15)" stroke="#ffdd00" stroke-width="1.5"/>
+  <text x="335" y="418" font-family="sans-serif" font-size="14" font-weight="700" fill="#ffdd00" text-anchor="middle" letter-spacing="2">☀ DAYLIGHT</text>
+
+  <!-- Bottom title -->
+  <text x="600" y="565" font-family="sans-serif" font-size="52" font-weight="700" fill="white" opacity="0.06" text-anchor="middle" letter-spacing="4">ISS</text>
+  <text x="600" y="590" font-family="monospace" font-size="11" fill="#ffcc00" opacity="0.3" text-anchor="middle" letter-spacing="4">INTERNATIONAL SPACE STATION — LIVE TRACKER</text>
+
+  <!-- Scanlines -->
+  <rect width="1200" height="630" fill="url(#scan)" opacity="0.04"/>
+</svg>
